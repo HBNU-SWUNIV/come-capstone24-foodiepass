@@ -1,23 +1,31 @@
 import 'package:flutter/material.dart';
-import 'package:foodiepass_android/pages/menu_select_page.dart';
+import 'package:foodiepass_android/controller/order_list_controller.dart';
+import 'package:foodiepass_android/models/order_list.dart';
 import 'package:foodiepass_android/pages/order_list_page.dart';
-import 'package:foodiepass_android/models/food.dart';
+import 'package:foodiepass_android/models/menu.dart';
+import 'package:get/get.dart';
 
 class FoodDetailPage extends StatefulWidget {
-  final Food item; // MenuItem 객체
-
-  FoodDetailPage({required this.item});
+  final Menu item; // MenuItem 객체
+  const FoodDetailPage({super.key, required this.item});
 
   @override
   _FoodDetailPageState createState() => _FoodDetailPageState();
 }
 
 class _FoodDetailPageState extends State<FoodDetailPage> {
+  final orderListController = Get.put(OrderListController(), permanent: true);
+
+  int quantity = 0;
+
+  bool isZero() {
+    return quantity == 0;
+  }
+
   @override
   Widget build(BuildContext context) {
-    double destinationTotalPrice =
-        widget.item.destinationPrice * widget.item.quantity;
-    double profileTotalPrice = widget.item.profilePrice * widget.item.quantity;
+    double destinationTotalPrice = widget.item.destinationPrice * quantity;
+    double profileTotalPrice = widget.item.profilePrice * quantity;
 
     return Scaffold(
       backgroundColor: Colors.white, // 페이지 전체 배경 흰색
@@ -37,20 +45,14 @@ class _FoodDetailPageState extends State<FoodDetailPage> {
         leading: IconButton(
           icon: Icon(Icons.arrow_back_ios, size: 30, color: Colors.black),
           onPressed: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => MenuSelectPage()),
-            );
+            Get.back();
           },
         ),
         actions: [
           IconButton(
             icon: Icon(Icons.shopping_cart, size: 30, color: Colors.black),
             onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => OrderListPage()),
-              );
+              Get.to(() => OrderListPage());
             },
           ),
         ],
@@ -60,12 +62,19 @@ class _FoodDetailPageState extends State<FoodDetailPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Image.asset(
-              widget.item.imagePath ??
-                  'assets/images/food_menu/ImageNotFound.png',
+            Image.network(
+              widget.item.image ?? '',
               width: double.infinity,
               height: 200,
               fit: BoxFit.cover,
+              errorBuilder: (context, error, stackTrace) {
+                return Image.asset(
+                  'assets/images/food_menu/ImageNotFound.png',
+                  width: double.infinity,
+                  height: 200,
+                  fit: BoxFit.cover,
+                );
+              },
             ),
             SizedBox(height: 20),
             Text(
@@ -91,7 +100,7 @@ class _FoodDetailPageState extends State<FoodDetailPage> {
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
                 Text(
-                  '\$ ${widget.item.destinationPrice.toStringAsFixed(2)}',
+                  widget.item.destinationPriceWithCurrencyUnit,
                   style: TextStyle(fontSize: 18),
                 ),
               ],
@@ -105,7 +114,7 @@ class _FoodDetailPageState extends State<FoodDetailPage> {
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
                 Text(
-                  '₩ ${widget.item.profilePrice.toStringAsFixed(0)}',
+                  widget.item.profilePriceWithCurrencyUnit,
                   style: TextStyle(fontSize: 18),
                 ),
               ],
@@ -122,25 +131,25 @@ class _FoodDetailPageState extends State<FoodDetailPage> {
                   children: [
                     IconButton(
                       icon: Icon(Icons.remove_circle_outline),
-                      onPressed: () {
+                      onPressed: quantity > 0
+                          ? () {
                         setState(() {
-                          if (widget.item.quantity > 0) {
-                            widget.item.quantity--;
-                          }
+                          quantity--;
                         });
-                      },
+                      }
+                          : null, // 수량이 0 이상일 때만 감소 가능
                     ),
-                    SizedBox(width: 5,),
+                    SizedBox(width: 5),
                     Text(
-                      '${widget.item.quantity}',
+                      '$quantity',
                       style: TextStyle(fontSize: 18),
                     ),
-                    SizedBox(width: 5,),
+                    SizedBox(width: 5),
                     IconButton(
                       icon: Icon(Icons.add_circle_outline),
                       onPressed: () {
                         setState(() {
-                          widget.item.quantity++;
+                          quantity++;
                         });
                       },
                     ),
@@ -162,11 +171,11 @@ class _FoodDetailPageState extends State<FoodDetailPage> {
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
                       Text(
-                        '\$ ${destinationTotalPrice.toStringAsFixed(2)}',
+                        '${widget.item.destinationPriceWithCurrencyUnit.substring(0, 1)} ${destinationTotalPrice.toStringAsFixed(2)}',
                         style: TextStyle(fontSize: 16),
                       ),
                       Text(
-                        '₩ ${profileTotalPrice.toStringAsFixed(0)}',
+                        '${widget.item.profilePriceWithCurrencyUnit.substring(0, 1)} ${profileTotalPrice.toStringAsFixed(2)}',
                         style: TextStyle(fontSize: 16),
                       ),
                     ],
@@ -180,10 +189,13 @@ class _FoodDetailPageState extends State<FoodDetailPage> {
                 height: 48,
                 child: ElevatedButton(
                   onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => MenuSelectPage()),
-                    );
+                    if (isZero()) {
+                      return; // 수량이 0일 경우 버튼이 동작하지 않음
+                    }
+                    final orderMenu =
+                    OrderList(menu: widget.item, quantity: quantity);
+                    orderListController.addMenu(orderMenu);
+                    Get.back();
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.lightGreen,

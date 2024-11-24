@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:foodiepass_android/controller/destination_controller.dart';
+import 'package:foodiepass_android/external/api_service.dart';
+import 'package:foodiepass_android/models/currency.dart';
+import 'package:foodiepass_android/models/language.dart';
 import 'package:get/get.dart';
-
-import '../controller/DestinationController.dart';
 
 class DestinationSettingPage extends StatefulWidget {
   const DestinationSettingPage({super.key});
@@ -14,29 +16,148 @@ class DestinationSettingPage extends StatefulWidget {
 class _DestinationSettingPageState extends State<DestinationSettingPage> {
   late String destinationLanguage;
   late String destinationCurrency;
+  late Future<List<Language>> languages;
+  late Future<List<Currency>> currencies;
 
   final DestinationController destinationController =
-      Get.put(DestinationController());
+  Get.put(DestinationController());
   final FlutterSecureStorage flutterSecureStorage =
-      const FlutterSecureStorage();
+  const FlutterSecureStorage();
+
+  TextEditingController searchLanguageController = TextEditingController();
+  TextEditingController searchCurrencyController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
+    languages = ApiService.getLanguages();
+    currencies = ApiService.getCurrencies();
 
     // 여행지 언어와 화폐 초기화
     destinationLanguage = destinationController.destinationLanguage;
     destinationCurrency = destinationController.destinationCurrency;
   }
 
-  void showLanguageList() {
-    // TODO: 언어 목록 보여주기
-    print('click language list button');
+  void _showLanguageList(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      builder: (BuildContext context) {
+        return FutureBuilder<List<Language>>(
+          future: languages,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const CircularProgressIndicator();
+            } else if (snapshot.hasError) {
+              return Text('Error: \${snapshot.error}');
+            } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
+              return const Text('No data available');
+            } else {
+              return Column(
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: TextField(
+                      controller: searchLanguageController,
+                      decoration: const InputDecoration(
+                        labelText: 'Select Language',
+                        border: OutlineInputBorder(),
+                      ),
+                      onChanged: (value) {
+                        setState(() {});
+                      },
+                    ),
+                  ),
+                  Expanded(
+                    child: ListView.builder(
+                      itemCount: snapshot.data!.length,
+                      itemBuilder: (context, index) {
+                        var country = snapshot.data![index];
+                        // 검색어로 필터링
+                        if (country.language.toLowerCase().contains(
+                            searchLanguageController.text.toLowerCase())) {
+                          return ListTile(
+                            title: Text(country.language),
+                            onTap: () {
+                              setState(() {
+                                destinationLanguage = country.language;
+                                destinationLanguage = country.language;
+                              });
+                              Get.back();
+                            },
+                          );
+                        } else {
+                          return Container();
+                        }
+                      },
+                    ),
+                  ),
+                ],
+              );
+            }
+          },
+        );
+      },
+    );
   }
 
-  void showCurrencyList() {
-    // TODO: 화폐 목록 보여주기
-    print('click currency list button');
+  void _showCurrencyList(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      builder: (BuildContext context) {
+        return FutureBuilder<List<Currency>>(
+          future: currencies,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const CircularProgressIndicator();
+            } else if (snapshot.hasError) {
+              return Text('Error: \${snapshot.error}');
+            } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
+              return const Text('No data available');
+            } else {
+              return Column(children: [
+                Padding(
+                  padding: const EdgeInsets.all(8.0),
+                  child: TextField(
+                    controller: searchCurrencyController,
+                    decoration: const InputDecoration(
+                      labelText: 'Select Currency',
+                      border: OutlineInputBorder(),
+                    ),
+                    onChanged: (value) {
+                      setState(() {});
+                    },
+                  ),
+                ),
+                Expanded(
+                  child: ListView.builder(
+                    itemCount: snapshot.data!.length,
+                    itemBuilder: (context, index) {
+                      var currency = snapshot.data![index];
+                      // 검색어로 필터링
+                      if (currency.currency.toLowerCase().contains(
+                          searchCurrencyController.text.toLowerCase())) {
+                        return ListTile(
+                          title: Text(currency.currency),
+                          onTap: () {
+                            setState(() {
+                              destinationCurrency = currency.currency;
+                              destinationCurrency = currency.currency;
+                            });
+                            Get.back();
+                          },
+                        );
+                      } else {
+                        return Container();
+                      }
+                    },
+                  ),
+                ),
+              ]);
+            }
+          },
+        );
+      },
+    );
   }
 
   void _submitDestinationInfo(BuildContext context) async {
@@ -48,6 +169,9 @@ class _DestinationSettingPageState extends State<DestinationSettingPage> {
 
     destinationController.changeDestination(
         destinationLanguage, destinationCurrency);
+
+    destinationLanguage = destinationLanguage;
+    destinationCurrency = destinationCurrency;
 
     Get.back();
   }
@@ -111,33 +235,38 @@ class _DestinationSettingPageState extends State<DestinationSettingPage> {
             const SizedBox(height: 7),
             GestureDetector(
               onTap: () {
-                showLanguageList();
+                _showLanguageList(context);
               },
               child: Container(
                 width: double.infinity,
                 height: 60,
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 decoration: ShapeDecoration(
-                    color: Colors.white,
-                    shape: RoundedRectangleBorder(
-                        side: const BorderSide(color: Colors.black),
-                        borderRadius: BorderRadius.circular(5))),
+                  color: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    side: const BorderSide(color: Colors.black),
+                    borderRadius: BorderRadius.circular(5),
+                  ),
+                ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    GetBuilder<DestinationController>(
-                      builder: (destinationController) => Text(
-                        '${destinationController.destinationLanguage}',
-                        style: const TextStyle(
-                          fontSize: 17,
+                    Expanded( // 텍스트 길이 제어를 위해 Expanded 추가
+                      child: GetBuilder<DestinationController>(
+                        builder: (destinationController) => Text(
+                          destinationLanguage,
+                          style: const TextStyle(
+                            fontSize: 17,
+                          ),
+                          overflow: TextOverflow.ellipsis, // 초과 시 ... 처리
+                          maxLines: 1, // 한 줄로 제한
                         ),
                       ),
                     ),
                     const Icon(
                       Icons.arrow_drop_down_circle,
                       color: Colors.grey,
-                    )
+                    ),
                   ],
                 ),
               ),
@@ -150,33 +279,38 @@ class _DestinationSettingPageState extends State<DestinationSettingPage> {
             const SizedBox(height: 7),
             GestureDetector(
               onTap: () {
-                showCurrencyList();
+                _showCurrencyList(context);
               },
               child: Container(
                 width: double.infinity,
                 height: 60,
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 decoration: ShapeDecoration(
-                    color: Colors.white,
-                    shape: RoundedRectangleBorder(
-                        side: const BorderSide(color: Colors.black),
-                        borderRadius: BorderRadius.circular(5))),
+                  color: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    side: const BorderSide(color: Colors.black),
+                    borderRadius: BorderRadius.circular(5),
+                  ),
+                ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    GetBuilder<DestinationController>(
-                      builder: (destinationController) => Text(
-                        '${destinationController.destinationCurrency}',
-                        style: const TextStyle(
-                          fontSize: 17,
+                    Expanded( // 텍스트 길이 제어를 위해 Expanded 추가
+                      child: GetBuilder<DestinationController>(
+                        builder: (destinationController) => Text(
+                          destinationCurrency,
+                          style: const TextStyle(
+                            fontSize: 17,
+                          ),
+                          overflow: TextOverflow.ellipsis, // 초과 시 ... 처리
+                          maxLines: 1, // 한 줄로 제한
                         ),
                       ),
                     ),
                     const Icon(
                       Icons.arrow_drop_down_circle,
                       color: Colors.grey,
-                    )
+                    ),
                   ],
                 ),
               ),

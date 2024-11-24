@@ -1,6 +1,11 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:foodiepass_android/models/food.dart';
+import 'package:foodiepass_android/models/script.dart';
+import 'package:foodiepass_android/controller/destination_controller.dart';
+import 'package:foodiepass_android/controller/profile_controller.dart';
+import 'package:foodiepass_android/controller/order_list_controller.dart';
+import 'package:foodiepass_android/external/api_service.dart';
 import 'home_page.dart';
 
 class OrderScriptPage extends StatefulWidget {
@@ -11,36 +16,28 @@ class OrderScriptPage extends StatefulWidget {
 }
 
 class _OrderScriptPageState extends State<OrderScriptPage> {
+  final DestinationController destinationController = Get.put(DestinationController());
+  final ProfileController profileController = Get.put(ProfileController());
+  final OrderListController orderListController = Get.put(OrderListController());
+
+  late Future<Script> script;
+
+  @override
+  void initState() {
+    super.initState();
+    // 번역 요청 준비
+    script = ApiService.postMenuListAndGetScript(
+      orderListController.orderList,
+      destinationController.destinationLanguage,
+      profileController.profileLanguage,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     const double appBarHeight = 60.0;
     final double screenHeight = MediaQuery.of(context).size.height;
     final double bodyHeight = screenHeight - appBarHeight;
-
-    // food.dart의 quantity가 1 이상인 음식들 필터링
-    final List<Food> orderedItems = menuItems.where((item) => item.quantity > 0).toList();
-
-    // 여행지 주문 메시지 생성
-    String destinationOrderMessage = "hello, I want to order.\n";
-    for (int i = 0; i < orderedItems.length; i++) {
-      final item = orderedItems[i];
-      destinationOrderMessage += "${item.quantity} ${item.destinationName}";
-      if (i < orderedItems.length - 1) {
-        destinationOrderMessage += "\n";
-      }
-    }
-    destinationOrderMessage += " please";
-
-    // 이용자 주문 메시지 생성
-    String profileOrderMessage = "주문하고 싶습니다.\n";
-    for (int i = 0; i < orderedItems.length; i++) {
-      final item = orderedItems[i];
-      profileOrderMessage += "${item.profileName} ${item.quantity}개";
-      if (i < orderedItems.length - 1) {
-        profileOrderMessage += "\n";
-      }
-    }
-    profileOrderMessage += " 주세요";
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -53,7 +50,7 @@ class _OrderScriptPageState extends State<OrderScriptPage> {
           children: [
             IconButton(
               onPressed: () {
-                clickBackButton();
+                Get.back();
               },
               icon: const Icon(
                 Icons.arrow_back_ios,
@@ -74,109 +71,134 @@ class _OrderScriptPageState extends State<OrderScriptPage> {
           ],
         ),
       ),
-      body: Container(
-        height: bodyHeight,
-        child: Column(
-          children: [
-            Expanded(
-              child: Container(
-                alignment: Alignment.bottomRight,
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Transform.rotate(
-                      angle: 3.14159,
-                      child: Text(
-                        destinationOrderMessage,
-                        style: const TextStyle(fontSize: 24),
+      body: FutureBuilder<Script>(
+        future: script,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            // 번역 중일 때 로딩 화면 표시
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text('스크립트 번역중', style: TextStyle(fontSize: 24)),
+                  const SizedBox(height: 20),
+                  const CircularProgressIndicator(),
+                ],
+              ),
+            );
+          } else if (snapshot.hasError) {
+            // 에러가 발생했을 때 에러 메시지 표시
+            return Center(
+              child: Text('Error: ${snapshot.error}', style: TextStyle(fontSize: 18)),
+            );
+          } else if (!snapshot.hasData) {
+            // 데이터가 없을 때 메시지 표시
+            return Center(
+              child: Text('No data available', style: TextStyle(fontSize: 18)),
+            );
+          } else {
+            // 번역된 스크립트를 화면에 표시
+            String translatedDestinationOrderMessage = snapshot.data!.destinationScript;
+            String translatedProfileOrderMessage = snapshot.data!.profileScript;
+
+            return SizedBox(
+              height: bodyHeight,
+              child: Column(
+                children: [
+                  Expanded(
+                    child: Container(
+                      alignment: Alignment.bottomRight,
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Transform.rotate(
+                            angle: math.pi,
+                            child: Text(
+                              translatedDestinationOrderMessage,
+                              style: const TextStyle(fontSize: 24),
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          Transform.rotate(
+                            angle: math.pi,
+                            child: const Text(
+                              'Order',
+                              style: TextStyle(
+                                  fontSize: 30, fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                          const SizedBox(
+                            height: 10,
+                          )
+                        ],
                       ),
                     ),
-                    const SizedBox(height: 10),
-                    Transform.rotate(
-                      angle: 3.14159,
-                      child: const Text(
-                        'Order',
-                        style: TextStyle(
-                            fontSize: 30, fontWeight: FontWeight.bold),
+                  ),
+                  Center(
+                    child: Container(
+                      margin: const EdgeInsets.symmetric(horizontal: 20),
+                      child: const Divider(
+                        thickness: 2,
+                        color: Colors.grey,
+                        height: 0,
                       ),
                     ),
-                    const SizedBox(
-                      height: 10,
-                    )
-                  ],
-                ),
-              ),
-            ),
-            Center(
-              child: Container(
-                margin: const EdgeInsets.symmetric(horizontal: 20),
-                child: const Divider(
-                  thickness: 2,
-                  color: Colors.grey,
-                  height: 0,
-                ),
-              ),
-            ),
-            Expanded(
-              child: Container(
-                alignment: Alignment.topLeft,
-                padding: const EdgeInsets.only(left: 20),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const SizedBox(
-                      height: 10,
+                  ),
+                  Expanded(
+                    child: Container(
+                      alignment: Alignment.topLeft,
+                      padding: const EdgeInsets.only(left: 20),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const SizedBox(
+                            height: 10,
+                          ),
+                          const Text(
+                            '당신의 주문',
+                            style:
+                            TextStyle(fontSize: 30, fontWeight: FontWeight.bold),
+                          ),
+                          const SizedBox(height: 10),
+                          Text(
+                            translatedProfileOrderMessage,
+                            style: const TextStyle(fontSize: 24),
+                          ),
+                        ],
+                      ),
                     ),
-                    const Text(
-                      '당신의 주문',
-                      style:
-                      TextStyle(fontSize: 30, fontWeight: FontWeight.bold),
-                    ),
-                    const SizedBox(height: 10),
-                    Text(
-                      profileOrderMessage,
-                      style: const TextStyle(fontSize: 24),
-                    ),
-                  ],
-                ),
+                  ),
+                  const SizedBox(
+                    height: 70,
+                  )
+                ],
               ),
-            ),
-            const SizedBox(
-              height: 70,
-            )
-          ],
-        ),
+            );
+          }
+        },
       ),
-      floatingActionButton: Container(
+      floatingActionButton: SizedBox(
         width: double.infinity,
         height: 48,
-        margin: const EdgeInsets.only(bottom: 20, left: 20, right: 20),
-        decoration: ShapeDecoration(
-          color: Colors.black12,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(5),
-          ),
-        ),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(5),
-          onTap: () {
+        child: ElevatedButton(
+          onPressed: () {
             finishOrder();
           },
-          child: Container(
-            width: double.infinity,
-            decoration: BoxDecoration(
-              color: Colors.lightGreen,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.lightGreen,
+            padding: EdgeInsets.zero,
+            shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(5),
             ),
-            child: const Center(
-              child: Text(
-                "Bon appétit!",
-                style: TextStyle(
-                  color: Colors.white,
-                ),
+          ),
+          child: const Center(
+            child: Text(
+              "Bon appétit!",
+              style: TextStyle(
+                color: Colors.white,
               ),
             ),
           ),
@@ -187,17 +209,14 @@ class _OrderScriptPageState extends State<OrderScriptPage> {
   }
 
   void clickBackButton() {
-    // TODO: Get.back()
-    Navigator.pop(context);
+    Get.back();
   }
 
   void clickHomeButton() {
-    // TODO: Go main
-    Get.to(() => const HomePage());
+    Get.offAll(() => const HomePage());
   }
 
   void finishOrder() {
-    // TODO: Go main
-    Get.to(() => const HomePage());
+    Get.offAll(() => const HomePage());
   }
 }

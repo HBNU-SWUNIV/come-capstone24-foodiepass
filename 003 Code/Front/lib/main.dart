@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:foodiepass_android/controller/DestinationController.dart';
-import 'package:foodiepass_android/controller/ProfileController.dart';
+import 'package:foodiepass_android/controller/destination_controller.dart';
+import 'package:foodiepass_android/controller/profile_controller.dart';
 import 'package:foodiepass_android/pages/profile_setting_page.dart';
 import 'package:get/get.dart';
 import 'pages/home_page.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
-void main() {
+void main() async {
+  await dotenv.load(fileName: "assets/config/.env");
   runApp(const FoodiePass());
 }
 
@@ -17,6 +19,7 @@ class FoodiePass extends StatelessWidget {
   Widget build(BuildContext context) {
     return GetMaterialApp(
       title: 'FoodiePass',
+      debugShowCheckedModeBanner: false,
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.lightGreen),
         useMaterial3: true,
@@ -40,7 +43,7 @@ class _SplashScreenState extends State<SplashScreen> {
   void initState() {
     super.initState();
     secureStorage = const FlutterSecureStorage();
-    _checkAndNavigate(); // 저장소 확인 및 적절한 화면으로 이동
+    _checkAndNavigate();
   }
 
   Future<void> _checkAndNavigate() async {

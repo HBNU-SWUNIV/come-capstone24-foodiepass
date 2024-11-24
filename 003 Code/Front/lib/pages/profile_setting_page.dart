@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:foodiepass_android/controller/ProfileController.dart';
+import 'package:foodiepass_android/controller/profile_controller.dart';
+import 'package:foodiepass_android/external/api_service.dart';
+import 'package:foodiepass_android/models/currency.dart';
+import 'package:foodiepass_android/models/language.dart';
 import 'package:foodiepass_android/pages/home_page.dart';
 import 'package:get/get.dart';
 
@@ -16,28 +19,147 @@ class ProfileSettingPage extends StatefulWidget {
 class _ProfileSettingPageState extends State<ProfileSettingPage> {
   late String profileLanguage;
   late String profileCurrency;
+  late Future<List<Language>> languages;
+  late Future<List<Currency>> currencies;
 
   final ProfileController profileController = Get.put(ProfileController());
   final FlutterSecureStorage flutterSecureStorage =
-      const FlutterSecureStorage();
+  const FlutterSecureStorage();
+
+  TextEditingController searchLanguageController = TextEditingController();
+  TextEditingController searchCurrencyController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
+    languages = ApiService.getLanguages();
+    currencies = ApiService.getCurrencies();
 
     // 프로필 언어와 화폐 초기화
     profileLanguage = profileController.profileLanguage;
     profileCurrency = profileController.profileCurrency;
   }
 
-  void showLanguageList() {
-    // TODO: 언어 목록 보여주기
-    print('click language list button');
+  void _showLanguageList(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      builder: (BuildContext context) {
+        return FutureBuilder<List<Language>>(
+          future: languages,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const CircularProgressIndicator();
+            } else if (snapshot.hasError) {
+              return Text('Error: \${snapshot.error}');
+            } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
+              return const Text('No data available');
+            } else {
+              return Column(
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: TextField(
+                      controller: searchLanguageController,
+                      decoration: const InputDecoration(
+                        labelText: 'Select Language',
+                        border: OutlineInputBorder(),
+                      ),
+                      onChanged: (value) {
+                        setState(() {});
+                      },
+                    ),
+                  ),
+                  Expanded(
+                    child: ListView.builder(
+                      itemCount: snapshot.data!.length,
+                      itemBuilder: (context, index) {
+                        var country = snapshot.data![index];
+                        // 검색어로 필터링
+                        if (country.language.toLowerCase().contains(
+                            searchLanguageController.text.toLowerCase())) {
+                          return ListTile(
+                            title: Text(country.language),
+                            onTap: () {
+                              setState(() {
+                                profileLanguage = country.language;
+                                profileLanguage = country.language;
+                              });
+                              Get.back();
+                            },
+                          );
+                        } else {
+                          return Container();
+                        }
+                      },
+                    ),
+                  ),
+                ],
+              );
+            }
+          },
+        );
+      },
+    );
   }
 
-  void showCurrencyList() {
-    // TODO: 화폐 목록 보여주기
-    print('click currency list button');
+  void _showCurrencyList(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      builder: (BuildContext context) {
+        return FutureBuilder<List<Currency>>(
+          future: currencies,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const CircularProgressIndicator();
+            } else if (snapshot.hasError) {
+              return Text('Error: \${snapshot.error}');
+            } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
+              return const Text('No data available');
+            } else {
+              return Column(children: [
+                Padding(
+                  padding: const EdgeInsets.all(8.0),
+                  child: TextField(
+                    controller: searchCurrencyController,
+                    decoration: const InputDecoration(
+                      labelText: 'Select Currency',
+                      border: OutlineInputBorder(),
+                    ),
+                    onChanged: (value) {
+                      setState(() {});
+                    },
+                  ),
+                ),
+                Expanded(
+                  child: ListView.builder(
+                    itemCount: snapshot.data!.length,
+                    itemBuilder: (context, index) {
+                      var currency = snapshot.data![index];
+                      // 검색어로 필터링
+                      if (currency.currency.toLowerCase().contains(
+                          searchCurrencyController.text.toLowerCase())) {
+                        return ListTile(
+                          title: Text(currency.currency),
+                          onTap: () {
+                            setState(() {
+                              profileCurrency = currency.currency;
+                              profileCurrency = currency.currency;
+                            });
+                            Get.back();
+                          },
+                        );
+                      } else {
+                        return Container();
+                      }
+                    },
+                  ),
+                ),
+              ]);
+            }
+          },
+        );
+      },
+    );
   }
 
   void _submitProfileInfo(BuildContext context) async {
@@ -48,6 +170,9 @@ class _ProfileSettingPageState extends State<ProfileSettingPage> {
         key: 'profileCurrency', value: profileCurrency);
 
     profileController.changeProfile(profileLanguage, profileCurrency);
+
+    profileLanguage = profileLanguage;
+    profileCurrency = profileCurrency;
 
     // 조건에 따라 뒤로 가기 로직 작성
     if (widget.fromHomePage) {
@@ -116,33 +241,38 @@ class _ProfileSettingPageState extends State<ProfileSettingPage> {
             const SizedBox(height: 7),
             GestureDetector(
               onTap: () {
-                showLanguageList();
+                _showLanguageList(context);
               },
               child: Container(
                 width: double.infinity,
                 height: 60,
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 decoration: ShapeDecoration(
-                    color: Colors.white,
-                    shape: RoundedRectangleBorder(
-                        side: const BorderSide(color: Colors.black),
-                        borderRadius: BorderRadius.circular(5))),
+                  color: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    side: const BorderSide(color: Colors.black),
+                    borderRadius: BorderRadius.circular(5),
+                  ),
+                ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    GetBuilder<ProfileController>(
-                      builder: (profileController) => Text(
-                        '${profileController.profileLanguage}',
-                        style: const TextStyle(
-                          fontSize: 17,
+                    Expanded( // 텍스트 길이 제어를 위해 Expanded 추가
+                      child: GetBuilder<ProfileController>(
+                        builder: (profileController) => Text(
+                          profileLanguage,
+                          style: const TextStyle(
+                            fontSize: 17,
+                          ),
+                          overflow: TextOverflow.ellipsis, // 초과 시 ... 처리
+                          maxLines: 1, // 한 줄로 제한
                         ),
                       ),
                     ),
                     const Icon(
                       Icons.arrow_drop_down_circle,
                       color: Colors.grey,
-                    )
+                    ),
                   ],
                 ),
               ),
@@ -155,33 +285,38 @@ class _ProfileSettingPageState extends State<ProfileSettingPage> {
             const SizedBox(height: 7),
             GestureDetector(
               onTap: () {
-                showCurrencyList();
+                _showCurrencyList(context);
               },
               child: Container(
                 width: double.infinity,
                 height: 60,
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 decoration: ShapeDecoration(
-                    color: Colors.white,
-                    shape: RoundedRectangleBorder(
-                        side: const BorderSide(color: Colors.black),
-                        borderRadius: BorderRadius.circular(5))),
+                  color: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    side: const BorderSide(color: Colors.black),
+                    borderRadius: BorderRadius.circular(5),
+                  ),
+                ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    GetBuilder<ProfileController>(
-                      builder: (profileController) => Text(
-                        '${profileController.profileCurrency}',
-                        style: const TextStyle(
-                          fontSize: 17,
+                    Expanded( // 텍스트 길이 제어를 위해 Expanded 추가
+                      child: GetBuilder<ProfileController>(
+                        builder: (profileController) => Text(
+                          profileCurrency,
+                          style: const TextStyle(
+                            fontSize: 17,
+                          ),
+                          overflow: TextOverflow.ellipsis, // 초과 시 ... 처리
+                          maxLines: 1, // 한 줄로 제한
                         ),
                       ),
                     ),
                     const Icon(
                       Icons.arrow_drop_down_circle,
                       color: Colors.grey,
-                    )
+                    ),
                   ],
                 ),
               ),
